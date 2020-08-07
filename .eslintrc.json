@@ -1,0 +1,49 @@
+{
+  "env": {
+    "browser": true,
+    "es6": true,
+    "node": true,
+    "jest": true
+  },
+  "extends": [
+    "eslint:recommended",
+    "plugin:@typescript-eslint/eslint-recommended",
+    "plugin:@typescript-eslint/recommended",
+    "plugin:import/errors",
+    "plugin:import/warnings",
+    "airbnb"
+  ],
+  "parser": "@typescript-eslint/parser",
+  // typescript settings
+  "settings": {
+    "import/resolver": {
+      "node": {
+        "extensions": [
+          ".js",
+          ".ts"
+        ],
+        "paths": [
+          "."
+        ]
+      }
+    }
+  },
+  "rules": {
+    "import/extensions": [
+      "error",
+      "ignorePackages",
+      {
+        "js": "never",
+        "ts": "never"
+      }
+    ],
+    "no-unused-vars": "warn",
+    "semi": "warn",
+    "indent": "warn",
+    "comma-dangle": "warn",
+    "default-case": "off",
+    "consistent-return": "off",
+    "@typescript-eslint/member-delimiter-style": "warn",
+    "import/prefer-default-export": "warn"
+  }
+}
