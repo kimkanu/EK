@@ -2,20 +2,23 @@ import {
   BrowserWindow, ipcMain, WebContents,
 } from 'electron'; // eslint-disable-line import/no-extraneous-dependencies
 import keytar from 'keytar';
-import {
-  Credential, tryToLogIn,
-} from 'src/api/kakao';
+import { tryToLogIn } from 'src/api';
+import Credential from 'src/models/credential';
 import state, { ChatList } from 'src/state';
 import {
-  ChatChannel, ChatUserInfo, Chat, Long, AuthStatusCode, TalkClient,
+  Long, AuthStatusCode, TalkClient,
 } from '@storycraft/node-kakao';
-import { lazyNotLoaded, lazyLoaded, LazyLoaded } from 'src/models/lazy';
+import {
+  REQUEST_CREDENTIAL,
+  SERVICE_NAME,
+  CREDENTIALS_EXIST,
+  WRONG_CREDENTIAL,
+} from 'src/constants';
+import {
+  saveCredential, parseCredential, deleteCredential,
+} from 'src/utils/credential';
 
 declare const LOGIN_WEBPACK_ENTRY: string;
-const SERVICE_NAME = 'ELECTRON_KAKAO';
-const CREDENTIALS_EXIST = 'CREDENTIALS_EXIST';
-const REQUEST_CREDENTIAL = 'REQUEST_CREDENTIAL';
-const WRONG_CREDENTIAL = 'WRONG_CREDENTIAL';
 
 async function onceReady(webContents: WebContents): Promise<void> {
   return new Promise((resolve) => {
@@ -25,27 +28,32 @@ async function onceReady(webContents: WebContents): Promise<void> {
   });
 }
 
-async function requestCredential(): Promise<Credential> {
+async function requestCredential(): Promise<Credential | null> {
   return new Promise((resolve) => {
+    ipcMain.once(CREDENTIALS_EXIST, () => {
+      resolve(null);
+    });
     ipcMain.once(REQUEST_CREDENTIAL, (event, credential: Credential) => {
       resolve(credential);
     });
   });
 }
 
-//                                             logInWindow, credential, isRegistered
 async function createLogInWindow(
   talkClient: TalkClient,
+//            logInWindow, credential, isRegistered
 ): Promise<[BrowserWindow, Credential, boolean]> {
   const logInWindow = new BrowserWindow({
-    height: 600,
-    width: 800,
+    height: 638,
+    width: 420,
+    resizable: false,
     webPreferences: {
       nodeIntegration: true,
     },
   });
 
   logInWindow.loadURL(LOGIN_WEBPACK_ENTRY);
+  logInWindow.removeMenu();
 
   if (process.env.NODE_ENV !== 'production') {
     logInWindow.webContents.openDevTools();
@@ -53,22 +61,26 @@ async function createLogInWindow(
 
   await onceReady(logInWindow.webContents);
 
-  const credentials = await keytar.findCredentials(SERVICE_NAME);
+  let credentials = (await keytar.findCredentials(SERVICE_NAME)).map(parseCredential);
   let credential: Credential | null = null;
   if (credentials.length > 0) {
-    logInWindow.webContents.send(CREDENTIALS_EXIST, true, credentials);
-    logInWindow.webContents.send(REQUEST_CREDENTIAL);
-    credential = await requestCredential();
+    /* eslint-disable no-await-in-loop */
+    while (!credential) {
+      logInWindow.webContents.send(CREDENTIALS_EXIST, credentials);
+      logInWindow.webContents.send(REQUEST_CREDENTIAL);
+      credential = await requestCredential();
+    }
+    /* eslint-enable no-await-in-loop */
   } else {
-    logInWindow.webContents.send(CREDENTIALS_EXIST, false, null);
+    logInWindow.webContents.send(CREDENTIALS_EXIST, []);
     credential = null;
   }
 
-  ipcMain.on(CREDENTIALS_EXIST, (event) => {
+  ipcMain.on(CREDENTIALS_EXIST, () => {
     if (credentials.length > 0) {
-      event.sender.send(CREDENTIALS_EXIST, true, credentials);
+      logInWindow.webContents.send(CREDENTIALS_EXIST, credentials);
     } else {
-      logInWindow.webContents.send(CREDENTIALS_EXIST, false, []);
+      logInWindow.webContents.send(CREDENTIALS_EXIST, []);
     }
   });
 
@@ -77,9 +89,11 @@ async function createLogInWindow(
     let isValid = credential !== null;
     let isRegistered = false;
     if (credential !== null) {
+      console.log('call trytologin');
       const logInResult = await tryToLogIn(talkClient, credential);
       isValid = logInResult.type === 'ok' || (logInResult.type === 'err' && logInResult.inner.status === AuthStatusCode.DEVICE_NOT_REGISTERED);
       isRegistered = logInResult.type === 'ok';
+      console.log('called');
 
       if (isValid) {
         if (logInResult.type === 'ok') {
@@ -96,16 +110,20 @@ async function createLogInWindow(
             }]),
           );
 
-          const { account, password } = credential;
-
-          await keytar.setPassword(SERVICE_NAME, account, password);
+          await saveCredential({
+            ...credential,
+            name: talkClient.ClientUser.MainUserInfo.Nickname,
+          });
         }
+        console.log('login window returned');
         return [logInWindow, credential, isRegistered];
       }
     }
 
     if (credential !== null) {
       logInWindow.webContents.send(WRONG_CREDENTIAL, credential);
+      await deleteCredential(credential);
+      credentials = (await keytar.findCredentials(SERVICE_NAME)).map(parseCredential);
     }
 
     logInWindow.webContents.send(REQUEST_CREDENTIAL);

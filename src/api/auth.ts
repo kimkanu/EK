@@ -1,25 +1,8 @@
-import os from 'os';
-import { machineIdSync } from 'node-machine-id';
-
 import {
-  TalkClient, AuthClient, WebApiStatusCode, AuthStatusCode, AuthApiStruct,
+  TalkClient, WebApiStatusCode, AuthStatusCode, AuthApiStruct,
 } from '@storycraft/node-kakao';
 import { Result, ok, err } from 'src/models/result';
-
-export interface Credential {
-  account: string;
-  password: string;
-}
-export interface DeviceInfo {
-  name: string;
-  uuid: string;
-}
-export function getDeviceInfo(): DeviceInfo {
-  return {
-    name: os.hostname() ?? 'electron-kakao',
-    uuid: Buffer.from(machineIdSync()).toString('base64'),
-  };
-}
+import Credential, { CredentialWithoutName } from 'src/models/credential';
 
 export type KakaoAuthData = {}
 export interface KakaoAuthError {
@@ -27,7 +10,7 @@ export interface KakaoAuthError {
   message?: string;
 }
 
-export async function tryToLogIn(talkClient: TalkClient, credential: Credential):
+export async function tryToLogIn(talkClient: TalkClient, credential: CredentialWithoutName):
   Promise<Result<KakaoAuthData, KakaoAuthError>> {
   try {
     await talkClient.login(credential.account, credential.password);
@@ -72,7 +55,7 @@ export async function tryToRegisterDevice(talkClient: TalkClient, credential: Cr
     );
     switch (response.status) {
       case WebApiStatusCode.SUCCESS:
-      case AuthStatusCode.DEVICE_ALREADY_REGISTERED: {
+      case AuthStatusCode.INVALID_DEVICE_REGISTER: {
         return tryToLogIn(talkClient, credential);
       }
       case AuthStatusCode.LOGIN_FAILED_REASON:

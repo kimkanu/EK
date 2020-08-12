@@ -1,11 +1,7 @@
-import { validateEmail } from 'src/utils/validation';
 import { ipcRenderer } from 'electron'; // eslint-disable-line import/no-extraneous-dependencies
-import { Credential } from 'src/api/kakao';
 
 import './style.css';
-
-const REQUEST_PASSCODE = 'REQUEST_PASSCODE';
-const WRONG_PASSCODE = 'WRONG_PASSCODE';
+import { REQUEST_PASSCODE, WRONG_PASSCODE } from 'src/constants';
 
 const $inputPasscode = document.getElementById('input__passcode') as HTMLInputElement;
 const $inputSubmit = document.getElementById('input__submit') as HTMLInputElement;

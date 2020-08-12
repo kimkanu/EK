@@ -87,3 +87,6 @@ typings/
 
 # Electron-Forge
 out/
+
+# dev branch of node-kakao
+node-kakao/

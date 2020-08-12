@@ -4,7 +4,11 @@ const plugins = require('./webpack.plugins');
 
 rules.push({
   test: /\.css$/,
-  use: [{ loader: 'style-loader' }, { loader: 'css-loader' }],
+  use: [
+    { loader: 'style-loader' },
+    { loader: 'css-loader' },
+    { loader: 'postcss-loader' },
+  ],
 });
 
 module.exports = {
@@ -13,7 +17,7 @@ module.exports = {
   },
   plugins,
   resolve: {
-    extensions: ['.js', '.ts', '.css'],
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.css'],
     alias: {
       src: path.join(__dirname, 'src'),
     },

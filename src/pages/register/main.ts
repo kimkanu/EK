@@ -1,18 +1,16 @@
 import {
   BrowserWindow, ipcMain, WebContents,
 } from 'electron'; // eslint-disable-line import/no-extraneous-dependencies
-import keytar from 'keytar';
-import {
-  Credential, tryToRegisterDevice,
-} from 'src/api/kakao';
+import { tryToRegisterDevice } from 'src/api';
+import Credential from 'src/models/credential';
 import state, { ChatList } from 'src/state';
 import {
   Long, AuthStatusCode, TalkClient,
 } from '@storycraft/node-kakao';
+import { SERVICE_NAME, REQUEST_PASSCODE } from 'src/constants';
+import { saveCredential } from 'src/utils/credential';
 
 declare const REGISTER_WEBPACK_ENTRY: string;
-const SERVICE_NAME = 'ELECTRON_KAKAO';
-const REQUEST_PASSCODE = 'REQUEST_PASSCODE';
 
 async function onceReady(webContents: WebContents): Promise<void> {
   return new Promise((resolve) => {
@@ -54,7 +52,7 @@ async function createRegisterWindow(
   const callbackResult = await tryToRegisterDevice(talkClient, credential);
   if (
     callbackResult.type === 'err'
-    && callbackResult.inner.status !== AuthStatusCode.DEVICE_ALREADY_REGISTERED
+    && callbackResult.inner.status !== AuthStatusCode.INVALID_DEVICE_REGISTER
   ) {
     return [registerWindow, false];
   }
@@ -74,7 +72,7 @@ async function createRegisterWindow(
 
     if (passcodeResult.type === 'ok' || (
       passcodeResult.type === 'err'
-      && passcodeResult.inner.status === AuthStatusCode.DEVICE_ALREADY_REGISTERED
+      && passcodeResult.inner.status === AuthStatusCode.INVALID_DEVICE_REGISTER
     )) {
       // set the initial state
       const channelList = talkClient.ChannelManager.getChannelList();
@@ -89,13 +87,15 @@ async function createRegisterWindow(
         }]),
       );
 
-      await keytar.setPassword(SERVICE_NAME, credential.account, credential.password);
+      await saveCredential({
+        ...credential,
+        name: talkClient.ClientUser.MainUserInfo.Nickname,
+      });
 
       return [registerWindow, true];
     }
 
     if (passcodeResult.inner.status !== AuthStatusCode.INCORRECT_PASSCODE) {
-      console.log(passcodeResult.inner);
       return [registerWindow, false];
     }
   }

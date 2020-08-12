@@ -19,7 +19,8 @@
       "src/*": [
         "src/*"
       ],
-    }
+    },
+    "jsx": "react"
   },
   "include": [
     "src/**/*",

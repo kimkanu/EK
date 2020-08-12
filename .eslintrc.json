@@ -20,7 +20,9 @@
       "node": {
         "extensions": [
           ".js",
-          ".ts"
+          ".jsx",
+          ".ts",
+          ".tsx"
         ],
         "paths": [
           "."
@@ -34,7 +36,10 @@
       "ignorePackages",
       {
         "js": "never",
-        "ts": "never"
+        "jsx": "never",
+        "ts": "never",
+        "tsx": "never",
+        "mjs": "never"
       }
     ],
     "no-unused-vars": "warn",
@@ -44,6 +49,19 @@
     "default-case": "off",
     "consistent-return": "off",
     "@typescript-eslint/member-delimiter-style": "warn",
-    "import/prefer-default-export": "warn"
+    "import/prefer-default-export": "warn",
+    "react/jsx-filename-extension": [2, {
+      "extensions": [".js", ".jsx", ".ts", ".tsx"]
+    }],
+    "no-undef": "off",
+    "react/prop-types": "off",
+    "no-nested-ternary": "off",
+    "react/no-array-index-key": "off",
+    "@typescript-eslint/explicit-function-return-type": [
+      "error",
+      {
+        "allowExpressions": true
+      }
+    ]
   }
 }

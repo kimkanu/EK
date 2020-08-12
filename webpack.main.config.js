@@ -11,7 +11,7 @@ module.exports = {
     rules: require('./webpack.rules'),
   },
   resolve: {
-    extensions: ['.js', '.ts', '.css', '.json'],
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.css', '.json', '.jpg', '.jpeg', '.gif', '/png'],
     alias: {
       src: path.join(__dirname, 'src'),
     },

@@ -10,12 +10,22 @@ export default class SortedMap<K, V> {
     this.innerMap = new Map(elements);
   }
 
-  private sort(): void {
+  sort(): void {
     this.keyList = Array.from(new Set(this.keyList));
     this.keyList = this.keyList.sort((a, b) => this.sorter(
       // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       this.innerMap.get(a)!, this.innerMap.get(b)!,
     ));
+  }
+
+  moveToFront(key: K): boolean {
+    const index = this.keyList.findIndex((k) => k === key);
+    if (index < 0) {
+      return false;
+    }
+    this.keyList.splice(index, 1);
+    this.keyList.unshift(key);
+    return true;
   }
 
   onChange(): void {
@@ -57,17 +67,16 @@ export default class SortedMap<K, V> {
     return res;
   }
 
-  toArray(): [K, V][] {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    return this.keyList.map((key) => [key, this.innerMap.get(key)!]);
+  toArray(): [K, V | undefined][] {
+    return this.keyList.map((key) => [key, this.innerMap.get(key)]);
   }
 
   forEach(callbackfn: (value: V, key: K) => void): void {
     this.innerMap.forEach(callbackfn);
   }
 
-  forEachAsync(callbackfn: (value: V, key: K) => Promise<void>): void {
+  forEachAsync(callbackfn: (value: V, key: K) => Promise<void>): Promise<void[]> {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    Promise.all(this.keyList.map((key) => callbackfn(this.innerMap.get(key)!, key)));
+    return Promise.all(this.keyList.map((key) => callbackfn(this.innerMap.get(key)!, key)));
   }
 }

@@ -1,14 +1,17 @@
 // import readline from 'readline';
 import {
-  tryToLogIn, getDeviceInfo, Credential,
+  tryToLogIn,
   // tryToRegisterDevice,
-} from 'src/api/kakao';
+} from 'src/api';
+import getDeviceInfo from 'src/utils/device-info';
+import Credential, { CredentialWithoutName } from 'src/models/credential';
+
 import { TalkClient } from '@storycraft/node-kakao';
 
 require('dotenv-flow').config();
 
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
-const credential: Credential = {
+const credential: CredentialWithoutName = {
   account: process.env.EMAIL!,
   password: process.env.PASSWORD!,
 };

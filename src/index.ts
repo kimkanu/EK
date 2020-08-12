@@ -1,17 +1,15 @@
 import { app, BrowserWindow } from 'electron'; // eslint-disable-line import/no-extraneous-dependencies
 import { setTimeout } from 'timers';
-import { ChatChannel, Chat, TalkClient } from '@storycraft/node-kakao';
-import createLogInWindow from './pages/login/main';
-import createRegisterWindow from './pages/register/main';
-import state from './state';
-import { fetchChatsAndSetState } from './api/kakao/fetch';
-import { lazyLoaded, LazyLoaded } from './models/lazy';
-import { getDeviceInfo } from './api/kakao';
-import createChannelListWindow from './pages/channel_list/main';
-
-declare const VOID_WEBPACK_ENTRY: string;
-
-const INCREMENTAL_FETCH_TIME = 60 * 1000; // 60 seconds
+import {
+  Chat, TalkClient, FeedChat, DeleteAllFeed,
+} from '@storycraft/node-kakao';
+import createLogInWindow from 'src/pages/login/main';
+import createRegisterWindow from 'src/pages/register/main';
+import state from 'src/state';
+import { fetchChatsAndSetState } from 'src/api';
+import getDeviceInfo from 'src/utils/device-info';
+import createChannelListWindow from 'src/pages/channel_list/main';
+import { INCREMENTAL_FETCH_TIME, UPDATE_CHANNELS_ORDER } from './constants';
 
 require('dotenv-flow').config();
 
@@ -20,12 +18,35 @@ if (require('electron-squirrel-startup')) { // eslint-disable-line global-requir
   app.quit();
 }
 
+// console.log(`${app.getPath('cache')}/${SERVICE_NAME}`);
+
+function attachListener(talkClient: TalkClient): void {
+  talkClient.on('message', (chat: Chat) => {
+    const channelState = state.channels.get(chat.Channel.Id.toString());
+    if (!channelState) {
+      return;
+    }
+    channelState.chatList.append(chat);
+
+    // update channel list order
+    state.channels.moveToFront(chat.Channel.Id.toString());
+    state.ee.emit(UPDATE_CHANNELS_ORDER, state.channels.keyList);
+  });
+
+  talkClient.on('feed', (feed: FeedChat) => {
+    console.log(feed.Text);
+  });
+
+  talkClient.on('message_deleted', (feed: FeedChat<DeleteAllFeed>) => {
+    console.log(feed.Text);
+  });
+}
+
 async function initialize(): Promise<void> {
   const deviceInfo = getDeviceInfo();
   const talkClient = new TalkClient(deviceInfo.name, deviceInfo.uuid);
   // log in screen
   const [logInWindow, credential, isRegistered] = await createLogInWindow(talkClient);
-  console.log('isRegistered:', isRegistered);
 
   setTimeout(() => {
     logInWindow.close();
@@ -35,9 +56,7 @@ async function initialize(): Promise<void> {
     // register
     const [registerWindow, isSucceeded] = await createRegisterWindow(talkClient, credential);
 
-    setTimeout(() => {
-      registerWindow.close();
-    }, 0);
+    setTimeout(registerWindow.close, 0);
 
     if (!isSucceeded) {
       return initialize();
@@ -53,10 +72,15 @@ async function initialize(): Promise<void> {
     Promise.all(channelList.map((channel) => fetchChatsAndSetState(state, channel)));
   }
 
+  attachListener(talkClient);
+
   const interval = setInterval(() => {
     if (state.channels) {
       state.channels.forEachAsync(async ({ chatChannel, lastConfirmedLogId }) => {
         await fetchChatsAndSetState(state, chatChannel, lastConfirmedLogId);
+      }).then(() => {
+        state.channels.sort();
+        state.ee.emit(UPDATE_CHANNELS_ORDER, state.channels.keyList);
       });
     } else {
       clearInterval(interval);
@@ -67,6 +91,7 @@ async function initialize(): Promise<void> {
   const channelListWindow = await createChannelListWindow();
   setTimeout(() => {
     channelListWindow.close();
+    clearInterval(interval);
   }, 0);
 
   state.initialize();
@@ -78,7 +103,6 @@ app.on('ready', async () => {
     await initialize();
   } catch (e) {
     console.log(e);
-    await initialize();
   }
 });
 
